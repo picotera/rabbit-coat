@@ -9,7 +9,7 @@ logging.basicConfig()
 ###http://activemq-domainname.rhcloud.com/demo/message/OPENSHIFT/DEMO?type=topic
 
 
-class  RabbitWrapper(object):
+class  rabbitcoat(object):
 
     
     ####################
@@ -252,7 +252,7 @@ class  RabbitWrapper(object):
 
 
 def usage():
-    print 'wrapper.py [--sender/--receiver] [-s <server>] [-u <user>] [-p <password>] [-v <vhost>] [-q <queue>] [-m <message>] [-t <timeout>]'
+    print 'wrapper.py [--sender/--receiver] [-s <server>] [-u <user>] [-p <password>] [-v <vhost>] [-q <in_queue>] [-Q <out_queue>] [-m <message>] [-t <timeout>] [-f <configuration file>]'
     sys.exit()
 
 
@@ -268,14 +268,15 @@ def main(argv):
     except getopt.GetoptError:
         usage()    
 
+
     server = user = password = vhost = timeout = in_queue = out_queue = message = callback = None
     for opt, arg in opts:
         if opt == '-h':
             usage()
         elif opt in ("-S", "--sender"):
-            message  = RabbitWrapper.default_message
+            message  = rabbitcoat.default_message
         elif opt in ("-R", "--receiver"):
-            callback  = RabbitWrapper.default_callback
+            callback  = rabbitcoat.default_callback
         elif opt in ("-s", "--server"):
             server = arg
         elif opt in ("-u", "--user"):
@@ -292,11 +293,13 @@ def main(argv):
             message = arg
         elif opt in ("-t", "--timeout"):
             timeout = arg
+        elif opt in ("-f", "--conf"):
+            confFile = arg
         else:
             usage()
 
-
-    rabbit = RabbitWrapper(server,user,password,vhost,timeout,in_queue,out_queue,message,callback)
+    
+    rabbit = rabbitcoat(server,user,password,vhost,timeout,in_queue,out_queue,message,callback)
     rabbit.run();
         
         
