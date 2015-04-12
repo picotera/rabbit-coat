@@ -123,14 +123,8 @@ class RabbitReceiver(RabbitFrame, threading.Thread):
         channel.start_consuming()
 
 
-    def Receive(self,queue=None, callback=None,read_repeatedly=False):
-        self.__init__(queue, callback,read_repeatedly)
-        self.run()
 
-
-
-
-class RabbitResponder(RabbitReceiver,RabbitSender):
+class RabbitResponder(RabbitReceiver):
 
      def __init__(self, config, inbound_queue, outbound_queue, response_function,read_repeatedly=False):
          RabbitReceiver.__init__(self, config, queue, Respond,read_repeatedly)
@@ -139,8 +133,8 @@ class RabbitResponder(RabbitReceiver,RabbitSender):
 
     def Respond(self, ch, method, properties, body):
         response = self.response_function(body)
-        RabbitSender.__init__(self, config, properties.reply_to, inbound_queue)        
-        self.Send(self,data=response,corr_id=properties.correlation_id,channel=ch):
+        sender = RabbitSender(self.config, properties.reply_to, inbound_queue)        
+        sender.Send(self,data=response,corr_id=properties.correlation_id,channel=ch):
         ch.basic_ack(delivery_tag = method.delivery_tag)
 
 
@@ -148,21 +142,17 @@ class RabbitResponder(RabbitReceiver,RabbitSender):
         return "response: got %s" % str(body)
 
 
-    def Start(self)
-        self.run()
 
-
-
-class RabbitRequester(RabbitSender,RabbitReceiver):
+class RabbitRequester(RabbitSender):
 
     def __init__(self, config, outbound_queue, callback, inbound_queue, read_repeatedly=False):
         RabbitSender.__init__(self, config, outbound_queue, inbound_queue)
-        RabbitReceiver.__init__(self, config, queue, callback, read_repeatedly)
 
 
     def ask(self,send_queue=None, reply_to_queue=None,message=None,callback=None,corr_id=str(uuid.uuid4())):
         self.Send(send_queue, message,corr_id,reply_to_queue)
-        self.Receive(reply_to_queue, callback)
+        receiver = RabbitReceiver(config, reply_to_queue, callback,False)
+        receiver.run()
 
 
 
