@@ -7,10 +7,10 @@ logging.basicConfig()
 url = os.environ.get('CLOUDAMQP_URL', 'amqp://qddxpjau:SMJ4jbIv97tiSQg7YDIw8RLMCjyWoVXg@turtle.rmq.cloudamqp.com/qddxpjau')
 #http://activemq-domainname.rhcloud.com/demo/message/OPENSHIFT/DEMO?type=topic
 
-default_server  = "turtle.rmq.cloudamqp.com"
-default_user = "qddxpjau"
-default_password = "SMJ4jbIv97tiSQg7YDIw8RLMCjyWoVXg"
-default_vhost = default_user
+default_server  = "localhost"
+default_user = "guest"
+default_password = "guest"
+default_vhost = "" #default_user
 default_port = "5672"
 default_queue = "DEMO"
 default_message ="Ding!"
