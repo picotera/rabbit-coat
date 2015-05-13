@@ -11,6 +11,7 @@ default_server  = "turtle.rmq.cloudamqp.com"
 default_user = "qddxpjau"
 default_password = "SMJ4jbIv97tiSQg7YDIw8RLMCjyWoVXg"
 default_vhost = default_user
+default_port = "5672"
 default_queue = "DEMO"
 default_message ="Ding!"
 default_timeout = 5
@@ -18,7 +19,7 @@ default_sender = True
 
 
 def usage():
-    print 'wrapper.py [--sender/--receiver] [-s <server>] [-u <user>] [-p <password>] [-v <vhost>] [-q <queue>] [-m <message>] [-t <timeout>]'
+    print 'wrapper.py [--sender/--receiver] [-s <server>] [-p <port>] [-u <user>] [-w <password>] [-v <vhost>] [-q <queue>] [-m <message>] [-t <timeout>]'
     sys.exit()
 
 # create a function which is called on incoming messages
@@ -26,7 +27,7 @@ def callback(ch, method, properties, body):
     print " [x] Received %r" % (body)
 
 
-def run(isSender, server, user, password, vhost,  queue, message,timeout):
+def run(isSender, server, user, password, vhost, port, queue, message,timeout):
     if (isSender is None):
         isSender = default_sender
     if (server is None):
@@ -37,6 +38,8 @@ def run(isSender, server, user, password, vhost,  queue, message,timeout):
         vhost = default_vhost
     if (password is None):
         password = default_password
+    if (port is None):
+        port = default_port
     if (queue is None):
         queue = default_queue
     if (message is None):
@@ -47,7 +50,8 @@ def run(isSender, server, user, password, vhost,  queue, message,timeout):
 #    body="?body=%s" % message
 #    body="&body=%s" % message
     #ampq_url = "ampq://%s:%s@%s/%s" % (user,password,server,vhost)
-    ampq_url = "ampq://%s:%s@%s/%s" % (user,password,server,vhost)
+    
+    ampq_url = "ampq://%s:%s@%s:%s/%s" % (user,password,server,port,vhost)
     
     url = os.environ.get('CLOUDAMQP_URL',ampq_url)
 
@@ -85,11 +89,11 @@ def run(isSender, server, user, password, vhost,  queue, message,timeout):
 	
 def main(argv):
     try:
-        opts, args = getopt.getopt(argv,"SRhs:u:p:v:q:m:t:",["receiver""sender","server=","user=","password=","vohst=","queue=","message=","timeout="])
+        opts, args = getopt.getopt(argv,"SRhs:u:w:p:v:q:m:t:",["receiver","sender","server=","user=","password=","vohst=","port=","queue=","message=","timeout="])
     except getopt.GetoptError:
         usage()    
 
-    (isSender,server,user,password,vhost,queue,message,timeout) = (None,None,None,None,None,None,None,None)
+    (isSender,server,user,password,vhost,port,queue,message,timeout) = (None,None,None,None,None,None,None,None,None)
     for opt, arg in opts:
         if opt == '-h':
             usage()
@@ -101,8 +105,10 @@ def main(argv):
             server = arg
         elif opt in ("-u", "--user"):
             user = arg
-        elif opt in ("-p", "--password"):
+        elif opt in ("-w", "--password"):
             password = arg
+        elif opt in ("-p", "--port"):
+            port = arg
         elif opt in ("-v", "--vhost"):
             vhost = arg
         elif opt in ("-q", "--queue"):
@@ -114,7 +120,7 @@ def main(argv):
 
 
 
-    run(isSender,server,user,password,vhost,queue,message,timeout)
+    run(isSender,server,user,password,vhost,port,queue,message,timeout)
 
         
         
