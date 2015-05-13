@@ -92,8 +92,13 @@ class RabbitSender(RabbitFrame):
         print "Sender: Produced message with:"
         print "\t correlation ID: %s" % corr_id
         print "\t body: %s" % message
-
         
+        return corr_id
+
+# This is what the callback function looks like
+def printCallback(data, properties):
+    print 'Receiver: %s' %data
+    
 class RabbitReceiver(RabbitFrame, threading.Thread):
 
     def __init__(self, config, queue, callback, read_repeatedly=False):
@@ -107,6 +112,14 @@ class RabbitReceiver(RabbitFrame, threading.Thread):
         #CR: self.callback not defined
         self.callback = callback
 
+    def __callback(self, ch, method, properties, body):
+        # Take care of parsing and acknowledging
+        if (body is not None):
+            data = json.loads(body)
+            self.callback(data, properties)          
+        
+        ch.basic_ack(delivery_tag = method.delivery_tag)
+        
     def run(self):
         channel = self.channel
         ''' Bind a callback to the queue '''
@@ -116,18 +129,41 @@ class RabbitReceiver(RabbitFrame, threading.Thread):
         # set up subscription on the queue
         channel.basic_qos(prefetch_count=1)
 
-        channel.basic_consume(self.callback,
+        channel.basic_consume(self.__callback,
                               self.queue,
                               no_ack=self.read_repeatedly)
 
         channel.start_consuming()
 
-
 # A basic print response for debugging
 def printResponse(body):
     return "response: got %s" % str(body)
     
-class RabbitResponder(RabbitReceiver):
+class SimpleRabbitResponder(RabbitReceiver):
+    '''
+    A simple responder that responds to one queue only
+    '''
+    def __init__(self, config, inbound_queue, response_function, out_queue, read_repeatedly=False):
+        RabbitReceiver.__init__(self, config, queue, self.__responderCallback, read_repeatedly)
+        
+        self.sender = RabbitSender(self.config, out_queue)
+            
+        self.response_function = self.response_function
+
+    def __responderCallback(self, data, properties):
+        '''
+        Respond to the relevant queue
+        
+        This goes through __callback first, so it receives just json data and properties.
+        '''        
+        response = self.response_function(data)
+        
+        self.sender.Send(data=response, corr_id=properties.correlation_id)
+
+class VersatileRabbitResponder(RabbitReceiver):
+    '''
+    A class that supports multiple out queues, rather than one like SimpleRabbitResponder.
+    '''
 
     def __init__(self, config, inbound_queue, response_function, default_out_queue=None, read_repeatedly=False):
         RabbitReceiver.__init__(self, config, queue, self.__callback, read_repeatedly)
@@ -179,7 +215,6 @@ class RabbitResponder(RabbitReceiver):
         sender.Send(self, data=response, corr_id=properties.correlation_id)        
         
         ch.basic_ack(delivery_tag = method.delivery_tag)
-    
     
 class RabbitRequester(RabbitSender):
 
