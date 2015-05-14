@@ -71,7 +71,10 @@ class RabbitSender(RabbitFrame):
         self.channel.queue_declare(queue, durable=True)
         self.reply_to = reply_to       
 
-    def Send(self, data=None, corr_id=str(uuid.uuid4()), reply_to_queue=None):
+    def Send(self, data=None, corr_id=None, reply_to_queue=None):
+        if corr_id == None:
+            corr_id = str(uuid.uuid4())
+    
         message        = json.dumps(data)
         reply_to_queue = validate(reply_to_queue, self.reply_to)
 
