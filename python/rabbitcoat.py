@@ -36,8 +36,6 @@ class RabbitFrame(object):
         parser = ConfigParser.SafeConfigParser(allow_no_value=True)
         parser.read(self.config)
         
-        #CR: RABBITMQ allows it to be inside a bigger config file, if needed ( more specific name )
-        #CR: This validation also has no meaning because everything is None
         self.server    = validate(parser.get('RABBITMQ', 'server')      ,self.server)
         self.user      = validate(parser.get('RABBITMQ', 'user')        ,self.user)
         self.vhost     = validate(parser.get('RABBITMQ', 'vhost')       ,self.vhost    ,self.user)
@@ -67,6 +65,8 @@ class RabbitSender(RabbitFrame):
     def __init__(self, config, queue, reply_to=None):
         RabbitFrame.__init__(self, config)
         
+        self.lock = threading.Lock()
+        
         self.queue = queue
         self.channel.queue_declare(queue, durable=True)
         self.reply_to = reply_to       
@@ -78,21 +78,20 @@ class RabbitSender(RabbitFrame):
         message        = json.dumps(data)
         reply_to_queue = validate(reply_to_queue, self.reply_to)
 
-        #CR: You can't send on a used channel, that's why we have a channel for each sender/receiver.
-        #CR: The queue is also declared in the constructor for the same reason
-
-        # send a message
-        self.channel.basic_publish(exchange='', 
-                                   routing_key=self.queue, 
-                                   body=message,
-                                   properties=pika.BasicProperties(
-                                       delivery_mode = 2, # make message persistent
-                                       correlation_id = corr_id,
-                                       reply_to = reply_to_queue,
-                                   ))
+        # Make this thread safe just in case
+        with self.lock:
+            # send a message
+            self.channel.basic_publish(exchange='', 
+                                       routing_key=self.queue, 
+                                       body=message,
+                                       properties=pika.BasicProperties(
+                                           delivery_mode = 2, # make message persistent
+                                           correlation_id = corr_id,
+                                           reply_to = reply_to_queue,
+                                       ))
                               
         #TODO: This should be moved to a log eventually
-        print "Sender: Produced message with:"
+        print "Sender: Produced message to queue %s with:" %self.queue
         print "\t correlation ID: %s" % corr_id
         print "\t body: %s" % message
         
@@ -112,7 +111,6 @@ class RabbitReceiver(RabbitFrame, threading.Thread):
         self.channel.queue_declare(queue, durable=True) # Declare a queue
 
         self.read_repeatedly = read_repeatedly
-        #CR: self.callback not defined
         self.callback = callback
 
     def __callback(self, ch, method, properties, body):
@@ -127,7 +125,7 @@ class RabbitReceiver(RabbitFrame, threading.Thread):
         channel = self.channel
         ''' Bind a callback to the queue '''
         #TODO: This should be moved to a log eventually
-        print "Receiver: starting to consume messeges"
+        print "Receiver: starting to consume messeges on queue %s" %self.queue
 
         # set up subscription on the queue
         channel.basic_qos(prefetch_count=1)
@@ -187,7 +185,6 @@ class VersatileRabbitResponder(RabbitReceiver):
             self.senders[None] = sender
             self.senders[default_out_queue] = sender
             
-        #CR: No need to validate.. why would you use a default response other than debugging?
         self.response_function = self.response_function
 
     def __callback(self, ch, method, properties, body):
