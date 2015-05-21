@@ -4,14 +4,11 @@ logging.basicConfig()
 
 # Parse CLODUAMQP_URL (fallback to localhost)
 
-#url = os.environ.get('CLOUDAMQP_URL', 'amqp://qddxpjau:SMJ4jbIv97tiSQg7YDIw8RLMCjyWoVXg@turtle.rmq.cloudamqp.com/qddxpjau')
-#http://activemq-domainname.rhcloud.com/demo/message/OPENSHIFT/DEMO?type=topic
-
 default_server  = "localhost"
 default_user = "guest"
 default_password = "guest"
 default_vhost = "" #default_user
-default_port = "5672"
+default_port = "1234"
 default_queue = "DEMO"
 default_message ="Ding!"
 default_timeout = 5
@@ -48,9 +45,6 @@ def run(isSender, server, user, password, vhost, port, queue, message,timeout):
     if (timeout is None):
         timeout = default_timeout
 
-#    body="?body=%s" % message
-#    body="&body=%s" % message
-    #ampq_url = "ampq://%s:%s@%s/%s" % (user,password,server,vhost)
     
     ampq_url = "ampq://%s:%s@%s:%s/%s" % (user,password,server,port,vhost)
     

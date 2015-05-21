@@ -234,7 +234,7 @@ class RabbitRequester(RabbitSender):
 def main(argv):
     #rabbit = rabbitcoat()
     #rabbit.Receive()
-    print "testers unimplemented *yet*- use cli.py"
+    print "testers unimplemented *yet*- use cli.py or rabbitfoot"
 
 
 if __name__ == "__main__":
