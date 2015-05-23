@@ -4,9 +4,6 @@ logging.basicConfig()
 
 # Parse CLODUAMQP_URL (fallback to localhost)
 
-#url = os.environ.get('CLOUDAMQP_URL', 'amqp://qddxpjau:SMJ4jbIv97tiSQg7YDIw8RLMCjyWoVXg@turtle.rmq.cloudamqp.com/qddxpjau')
-#http://activemq-domainname.rhcloud.com/demo/message/OPENSHIFT/DEMO?type=topic
-
 default_server  = "localhost"
 default_user = "guest"
 default_password = "guest"
@@ -15,22 +12,27 @@ default_port = "5672"
 default_queue = "DEMO"
 default_message ="Ding!"
 default_timeout = 5
-default_sender = True
+default_is_sender = True
+default_is_getter = False
 
 
 def usage():
-    print 'rabbitfoot [--sender(-S)/--receiver(-R)] [-s <server>] [-p <port>] [-u <user>] [-w <password>] [-v <vhost>] [-q <queue>] [-m <message>] [-t <timeout>]'
+    print 'rabbitfoot [--sender(-S)/--receiver(-R)/--getter(G)] [-s <server>] [-p <port>] [-u <user>] [-w <password>] [-v <vhost>] [-q <queue>] [-m <message>] [-t <timeout>]'
     print "hint: you can also use long options - it's just the name of the field with -- before it: --port <port>, --password <password>, etc. "
     sys.exit()
 
 # create a function which is called on incoming messages
 def callback(ch, method, properties, body):
+    handleBody(body)
+
+def handleBody(body):
     print " [x] Received %r" % (body)
 
-
-def run(isSender, server, user, password, vhost, port, queue, message,timeout):
+def run(isSender, isGetter, server, user, password, vhost, port, queue, message,timeout):
     if (isSender is None):
-        isSender = default_sender
+        isSender = default_is_sender
+    if (isGetter is None):
+        isGetter = default_is_getter
     if (server is None):
         server = default_server
     if (user is None):
@@ -48,9 +50,6 @@ def run(isSender, server, user, password, vhost, port, queue, message,timeout):
     if (timeout is None):
         timeout = default_timeout
 
-#    body="?body=%s" % message
-#    body="&body=%s" % message
-    #ampq_url = "ampq://%s:%s@%s/%s" % (user,password,server,vhost)
     
     ampq_url = "ampq://%s:%s@%s:%s/%s" % (user,password,server,port,vhost)
     
@@ -77,24 +76,36 @@ def run(isSender, server, user, password, vhost, port, queue, message,timeout):
                               ))
         print "Sender: Produced message: %s" % message
     else :
-        print "Receiver: starting to consume messeges"
-        # set up subscription on the queue
-        channel.basic_consume(callback,
-                              queue,
-                              no_ack=True)
+        if (isGetter) :
+            print "Getter: getting a message"
+
+
+            method_frame, header_frame, body = channel.basic_get(queue = queue)
+            if method_frame == None :                
+                print "Queue Empty.."
+            else:            
+                channel.basic_ack(delivery_tag=method_frame.delivery_tag)
+                handleBody(body)
+        else:
+            print "Receiver: starting to consume messeges (Ctrl+C to exit)"
+            # set up subscription on the queue
+            channel.basic_consume(callback,
+                                  queue,
+                                  no_ack=True)
+            channel.start_consuming() # start consuming (blocks)
         
-        channel.start_consuming() # start consuming (blocks)
-        
+        #anyhow..
         connection.close()
 
 	
 def main(argv):
     try:
-        opts, args = getopt.getopt(argv,"SRhs:u:w:p:v:q:m:t:",["receiver","sender","server=","user=","password=","vohst=","port=","queue=","message=","timeout="])
+        opts, args = getopt.getopt(argv,"SRGhs:u:w:p:v:q:m:t:",["receiver","sender","getter","server=","user=","password=","vohst=","port=","queue=","message=","timeout="])
     except getopt.GetoptError:
         usage()    
 
-    (isSender,server,user,password,vhost,port,queue,message,timeout) = (None,None,None,None,None,None,None,None,None)
+    isSender = isGetter = server = user = password = vhost = port = queue = message = timeout = None
+
     for opt, arg in opts:
         if opt == '-h':
             usage()
@@ -102,6 +113,10 @@ def main(argv):
             isSender  = True
         elif opt in ("-R", "--receiver"):
             isSender  = False
+            isGetter  = False
+        elif opt in ("-G", "--getter"):
+            isSender  = False
+            isGetter  = True   
         elif opt in ("-s", "--server"):
             server = arg
         elif opt in ("-u", "--user"):
@@ -121,7 +136,7 @@ def main(argv):
 
 
 
-    run(isSender,server,user,password,vhost,port,queue,message,timeout)
+    run(isSender,isGetter,server,user,password,vhost,port,queue,message,timeout)
 
         
         
